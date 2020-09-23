@@ -1,0 +1,60 @@
+<?php
+/**
+ * @file
+ * Create a block for friend recommendation
+ * @author Wang Xiaoli (creator)
+ */
+
+/**
+ * Implements hook_block_info().
+ */
+function friend_recommendation_block_info() {
+  global $user;
+  
+  $blocks['people_you_may_know'] = array (
+		'info' => t('People You May Know'),
+		'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['people_you_may_know']['properties']['administrative'] = TRUE;
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function friend_recommendation_block_view($delta = '') {
+  global $user;
+
+  $block = array();
+
+  if ($delta == 'people_you_may_know') {
+      if (user_access('access content')) {
+        // Perform database queries to gather users who are not friends of the current user.
+	    $uid = $user->uid;
+
+	    $query = db_select('users', 'u');
+		$items = $query->fields('u', array('uid', 'name'))
+		->condition('u.status', 1)
+        ->condition('u.uid', $uid, '<>')
+		->orderby('u.access', 'desc')
+		->range(0, 5)
+		->execute()
+		->fetchAll();
+		
+		if (count($items)!==0) {
+		    $html = '<ul>';
+		    foreach($items as $item) {
+		      $html .= '<li><a href="' . url("user/{$item->uid}")  . '"  class="username">' . $item->name . '</a>' . '' . '</li>' ;
+		      $html .= '<a href="' . url("relationship/{$item->uid}/request", array('query' => array('destination' => $_GET['q']))) . '" class="button">Add Friend</a>';
+		    }
+		    $html .= '</ul>';
+			$block['subject'] = t('People You May Know');
+    		$block['content'] =  $html;
+    	}
+
+      }
+  }
+
+  return $block;
+}

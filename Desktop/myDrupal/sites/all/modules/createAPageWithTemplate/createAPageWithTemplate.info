@@ -1,0 +1,11 @@
+name = Module Testing
+description = Provide creating a general page example.
+
+dependencies[] = blog
+
+core = 7.x
+version = 7.x-20121210
+author = Wang Xiaoli
+
+package = Example
+project = Example

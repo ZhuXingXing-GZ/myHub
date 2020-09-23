@@ -1,0 +1,131 @@
+<?php
+/**
+ * @file
+ * @author Wang Xiaoli (creator)
+ */
+
+function entity_creator_create_users() {
+	$max_num = 10; // The total number of users
+	$i = 1;
+	while($i < $max_num) {
+		$name = 'guest' . $i;
+		if ($error = user_validate_name($name)) {
+	      	$i++;
+	      	$max_num++;
+	      	continue;
+	    }
+	    
+	    // If the user exists
+	    if((bool)db_select('users')
+		    ->fields('users', array('uid'))
+		    ->condition('name', db_like($name), 'LIKE')
+		    ->range(0, 1)
+		    ->execute()
+		    ->fetchField()) {
+	    	$i++;
+	      	$max_num++;
+	      	continue;
+	    }
+		
+		// Register this new user
+		$pass = $name;
+		$mail = $name . '@test.com';
+		$userinfo = array(
+			'name' => $name,
+			'pass' => $pass,
+			'init' => $mail,
+			'mail' => $mail,
+			'status' => 1,
+			'access' => REQUEST_TIME,
+		);			
+		$account = user_save(drupal_anonymous_user(), $userinfo);
+		if ($account && isset($account->uid)) {
+		    // Create related nodes for this user
+			entity_creator_create_nodes($account);
+		}
+		else {
+			$max_num++;
+		}
+		$i++;
+	}
+}
+function entity_creator_create_nodes($account) {
+	$title = 'Your title';
+	$type = 'blog';
+	$body = 'Your content';
+	
+	$node_info = array(
+		  'uid' 	  => $account->uid,
+	      'title'     => check_plain($title),
+	      'comment'   => variable_get('comment_' . $type, COMMENT_NODE_OPEN),
+		  'comment_count' => '',
+	      'moderate'  => 0,
+	      'promote'   => 1,
+	      'revision'  => 1,
+	      'log'       => '',
+	      'status'    => 1,
+	      'sticky'    => 0,
+	      'type'      => $type,
+	      'revisions' => NULL,
+	      'language'  => LANGUAGE_NONE,
+	);
+	$node_info['body'][LANGUAGE_NONE][0] = array('value' => $body, 'format' => 'filtered_html');
+	
+	$node = (object)$node_info;
+	node_submit($node);
+	node_save($node);
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function show_all_users_block_info() {
+  global $user;
+  
+  $blocks['show_all_users'] = array (
+		'info' => t('Show all users'),
+		'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['show_all_users']['properties']['administrative'] = TRUE;
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function show_user_block_view($delta = '') {
+  global $user;
+
+  $block = array();
+
+  if ($delta == 'show_all_users') {
+      if (user_access('access content')) {
+        // Perform database queries to gather users who are not friends of the current user.
+	    $uid = $user->uid;
+
+	    $query = db_select('users', 'u');
+		$items = $query->fields('u', array('uid', 'name'))
+		->condition('u.status', 1)
+        //->condition('u.uid', $uid, '<>')
+		->orderby('u.access', 'desc')
+		//->range(0, 5)
+		->execute()
+		->fetchAll();
+		
+		if (count($items)!==0) {
+		    $html = '<ul>';
+		    foreach($items as $item) {
+		      $html .= '<li><a href="' . url("user/{$item->uid}")  . '"  class="username">' . $item->name . '</a>' . '' . '</li>' ;
+		      $html .= '<a href="' . url("relationship/{$item->uid}/request", array('query' => array('destination' => $_GET['q']))) . '" class="button">Add Friend</a>';
+		    }
+		    $html .= '</ul>';
+			$block['subject'] = t('People You May Know');
+    		$block['content'] =  $html;
+    	}
+
+      }
+  }
+
+  return $block;
+}

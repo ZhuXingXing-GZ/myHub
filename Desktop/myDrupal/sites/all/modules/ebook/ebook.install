@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function ebook_node_install() {
+	//Updates the database cache of node types
+	node_types_rebuild();
+	$types = node_type_get_types();
+	// add the body field to the node type
+	node_add_body_field($types['ebook']);
+	// Load the instance definition for our content type's body
+	$body_instance = field_info_instance('node', 'body', 'ebook');
+	// Configure the body field
+	$body_instance['type'] = 'text_summary_or_trimmed';
+	// Save our changes to the body field instance.
+	field_update_instance($body_instance);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function file_node_uninstall() {
+	$nids = db_query('SELECT nid FROM {node} n WHERE n.type = :type', array(':type' => 'ebook'))->fetchCol();
+
+	$i = 0;
+	while( $i*100 < count($nids) ) {
+		$slices = array_slice($nids, $i * 100, 100);
+		$i++;
+		node_delete_multiple($slices);
+	}
+
+	$instances = field_info_instances('node', 'ebook');
+  	foreach ($instances as $instance_name => $instance) {
+  		field_delete_instance($instance);
+  	}
+
+  	node_type_delete('ebook');  	
+  	field_purge_batch(1000);
+}

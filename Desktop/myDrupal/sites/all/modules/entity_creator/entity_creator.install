@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file schema for entity_creator.install
+ * 
+ */
+
+ 
+/**
+ * Implementation of hook_install().
+ */
+function entity_creator_install() {
+	entity_creator_create_users();
+}
+ 
+ 

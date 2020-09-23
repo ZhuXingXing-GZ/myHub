@@ -1,0 +1,90 @@
+<?php
+
+/**
+ * Implementation of hook_node_info
+ *
+ * @return unknown
+ */
+
+
+function ebook_node_info() {
+	$info = array();
+	$info['ebook'] = array(
+		'name' => t('EBook'),
+		'base' => 'node_content',
+	);
+	return $info;
+}
+
+function ebook_menu() {
+  $items['allEbooks'] = array(
+    
+
+    'title' => t('all ebooks'),
+    'page callback' => 'allEbooks_page',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 5,
+  );
+  $items['myEbooks'] = array(
+    
+
+    'title' => t('my ebooks'),
+    'page callback' => 'myEbooks_page',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 5,
+  );
+  return $items;
+}
+ 
+function allEbooks_page() {
+  //return "Hello world!";
+  $query = db_select('file_managed', 'fm')
+		->fields('fm', array('filename'))
+		->condition('fm.status', 1)
+		->condition('fm.filemime',array('application/pdf','text/plain'))
+        //->condition('u.uid', $uid, '<>')
+		//->orderby('u.access', 'desc')
+		//->range(0, 5)
+		->execute()
+		->fetchAll();
+  $output = '<table>';
+  foreach($query as $query) {
+    $output .= '<tr>';
+    $output .= '<td>' . $query->filename.'</td>' ;
+    $output .= '</tr>';
+  }
+
+  $output .= '<table>';
+  return $output;
+  
+}
+
+function myEbooks_page() {
+  global $user;
+  $uid = $user -> uid;
+  $query = db_select('file_managed', 'fm')
+		->fields('fm', array('filename','uid'))
+		->condition('fm.status', 1)
+		->condition('fm.filemime',array('application/pdf','text/plain'))
+                ->condition('fm.uid', $uid, '<>')
+		//->orderby('u.access', 'desc')
+		//->range(0, 5)
+		->execute()
+		->fetchAll();
+  $output = '<table>';
+  foreach($query as $query) {
+    $output .= '<tr>';
+    $output .= '<td>' . $query->uid.'</td>' ;
+    $output .= '<td> --- </td>' ;
+    $output .= '<td>' . $query->filename.'</td>' ;
+    $output .= '</tr>';
+  }
+
+  $output .= '<table>';
+  return $output;
+  
+}
