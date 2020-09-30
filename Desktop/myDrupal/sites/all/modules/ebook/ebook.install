@@ -3,24 +3,32 @@
 /**
  * Implements hook_install().
  */
-function ebook_node_install() {
+function ebook_install() {
 	//Updates the database cache of node types
 	node_types_rebuild();
 	$types = node_type_get_types();
 	// add the body field to the node type
-	node_add_body_field($types['ebook']);
-	// Load the instance definition for our content type's body
-	$body_instance = field_info_instance('node', 'body', 'ebook');
-	// Configure the body field
-	$body_instance['type'] = 'text_summary_or_trimmed';
-	// Save our changes to the body field instance.
+	$body_instance = node_add_body_field($types['ebook']);
+	$body_instance['widget']['weight'] = 2;
+	$body_instance['display']['default']['type'] = 'hidden';
 	field_update_instance($body_instance);
+
+	// create ebook basic fields and instances
+	foreach (_ebook_controlled_fields() as $field) {
+		_ebook_ensure_field($field);
+	}
+	
+	foreach (_ebook_controlled_instances() as $instance) {
+		$instance['entity_type'] = 'node';
+    	$instance['bundle'] = 'ebook';
+    	_ebook_ensure_instance($instance);
+  	}
 }
 
 /**
  * Implements hook_uninstall().
  */
-function file_node_uninstall() {
+function ebook_uninstall() {
 	$nids = db_query('SELECT nid FROM {node} n WHERE n.type = :type', array(':type' => 'ebook'))->fetchCol();
 
 	$i = 0;
@@ -30,11 +38,116 @@ function file_node_uninstall() {
 		node_delete_multiple($slices);
 	}
 
+	// delete field instances
 	$instances = field_info_instances('node', 'ebook');
   	foreach ($instances as $instance_name => $instance) {
   		field_delete_instance($instance);
   	}
+  	
+	foreach(array_keys(_ebook_controlled_fields()) as $field) {
+		$existing_field = field_read_field($field);
+		if ($existing_field) {
+			field_delete_field($field);
+		}
+	}
+	
 
   	node_type_delete('ebook');  	
   	field_purge_batch(1000);
 }
+
+/**
+ * Define the fields for our content type.
+ *
+ * This big array is factored into this function for readability.
+ *
+ * @return
+ *  An associative array specifying the fields add to the new node type.
+ */
+function _ebook_controlled_fields() {
+	return array(
+		'book_cover' => array(
+			'field_name' => 'book_cover',
+			'type'       => 'image',
+		),
+		'book_file' => array(
+			'field_name' => 'book_file',
+			'type'       => 'file',
+		),
+	);
+}
+
+/**
+ * Define the field instances for the new content type.
+ * @return
+ *  An associative array specifying the instances.
+ */
+function _ebook_controlled_instances() {
+	return array(
+		'book_cover' => array(
+		    'field_name' => 'book_cover',
+		    'label' => t('Cover Image'),
+		    'description' => t('Upload a cover image.'),
+			'settings' => array(
+				'file_extensions' => 'png jpg jpeg',
+				'max_filesize' => '5MB',
+			),
+		    'widget' => array(
+				'weight' => 5,
+		    ),
+		    'display' => array(
+				'default' => array(
+					'type' => 'hidden',
+				),
+		        'teaser' => array(
+		          'label' => 'hidden',
+		          'type' => 'image',
+		          'settings' => array(
+					'image_style' => 'thumbnail',
+					'image_link' => 'content',
+				  ),
+		        ),
+		    ),
+		),
+		'book_file' => array(
+		    'field_name' => 'book_file',
+		    'label' => t('Book File'),
+		    'description' => t('Upload a pdf file.'),
+			'settings' => array(
+				'file_extensions' => 'pdf',
+				'max_filesize' => '50MB',
+			),
+		    'widget' => array(
+				'weight' => 10,
+		    ),
+		    'display' => array(
+				'teaser' => array(
+					'type' => 'hidden'
+				),
+				'default' => array(
+		          'label' => 'hidden',
+		          'type' => 'pdf_reader_file',
+		          'settings'=> array(
+		          	'renderer' => 'pdf-js',
+				  ),
+		        ),
+		    ),
+		),
+	);
+}
+
+function _ebook_ensure_field($field) {
+	$existing_field = field_read_field($field['field_name'], array('include_inactive' => TRUE));
+	if (empty($existing_field)) {
+		field_create_field($field);
+	}
+}
+
+function _ebook_ensure_instance($instance) {
+	$existing_instance = field_info_instance($instance['entity_type'], $instance['field_name'], $instance['bundle']);
+	$existing_field = field_read_field($instance['field_name']);
+	if ($existing_field && empty($existing_instance)) {
+    	field_create_instance($instance);
+	}
+}
+

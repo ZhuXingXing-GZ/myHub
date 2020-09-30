@@ -564,7 +564,19 @@ h1#site-name {
   margin-bottom: 30px;
 }
 
+/* ----------------- annotation --------------- */
+.annotation-ebook-wrapper{
+  width: 30%;
+  display: inline;
+  float: left;
+}
+
 /* ----------------- Content ------------------ */
+
+.content .clearfix{
+  display: inlne;
+  float:left;
+}
 
 .content {
   margin-top: 10px;

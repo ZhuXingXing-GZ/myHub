@@ -5,86 +5,59 @@
  *
  * @return unknown
  */
-
-
 function ebook_node_info() {
 	$info = array();
 	$info['ebook'] = array(
 		'name' => t('EBook'),
 		'base' => 'node_content',
+		'description' => t('Use for ebook. Every user can upload and view a book.'),
 	);
 	return $info;
 }
 
+/**
+ * Implementation of hook_menu()
+ */
 function ebook_menu() {
-  $items['allEbooks'] = array(
-    
-
-    'title' => t('all ebooks'),
-    'page callback' => 'allEbooks_page',
-    'access callback' => TRUE,
+  $items['mylibrary'] = array(
+    'title' => t('My Library'),
+    'page callback' => 'mylibrary_page_callback',
+    'access arguments' => array('access content'),
     'type' => MENU_NORMAL_ITEM,
-    'menu_name' => 'main-menu',
-    'weight' => 5,
+    'menu_name' => 'user-menu',
+    'weight' => -5,
   );
-  $items['myEbooks'] = array(
-    
 
-    'title' => t('my ebooks'),
-    'page callback' => 'myEbooks_page',
-    'access callback' => TRUE,
-    'type' => MENU_NORMAL_ITEM,
-    'menu_name' => 'main-menu',
-    'weight' => 5,
-  );
   return $items;
 }
- 
-function allEbooks_page() {
-  //return "Hello world!";
-  $query = db_select('file_managed', 'fm')
-		->fields('fm', array('filename'))
-		->condition('fm.status', 1)
-		->condition('fm.filemime',array('application/pdf','text/plain'))
-        //->condition('u.uid', $uid, '<>')
-		//->orderby('u.access', 'desc')
-		//->range(0, 5)
-		->execute()
-		->fetchAll();
-  $output = '<table>';
-  foreach($query as $query) {
-    $output .= '<tr>';
-    $output .= '<td>' . $query->filename.'</td>' ;
-    $output .= '</tr>';
-  }
 
-  $output .= '<table>';
-  return $output;
-  
-}
-
-function myEbooks_page() {
+function mylibrary_page_callback(){
   global $user;
-  $uid = $user -> uid;
-  $query = db_select('file_managed', 'fm')
-		->fields('fm', array('filename','uid'))
-		->condition('fm.status', 1)
-		->condition('fm.filemime',array('application/pdf','text/plain'))
-                ->condition('fm.uid', $uid, '<>')
-		//->orderby('u.access', 'desc')
-		//->range(0, 5)
-		->execute()
-		->fetchAll();
-  $output = '<table>';
-  foreach($query as $query) {
-    $output .= '<tr>';
-    $output .= '<td>' . $query->uid.'</td>' ;
-    $output .= '<td> --- </td>' ;
-    $output .= '<td>' . $query->filename.'</td>' ;
-    $output .= '</tr>';
+  $build = array();
+
+  $query = db_select('node', 'n')->extend('PagerDefault');
+  $nids = $query
+    ->fields('n', array('nid', 'created'))
+    ->condition('type', 'ebook')
+    ->condition('uid', $user->uid)  //books uploaded by the current user
+    ->condition('status', 1)
+    ->orderBy('created', 'DESC')
+    ->limit(variable_get('default_nodes_main', 10))
+    ->addTag('node_access')
+    ->execute()
+    ->fetchCol();
+
+  if (!empty($nids)) {
+    $nodes = node_load_multiple($nids);
+    $build += node_view_multiple($nodes);
+    $build['pager'] = array(
+      '#theme' => 'pager',
+      '#weight' => 5,
+    );
+  }
+  else {
+    drupal_set_message(t('No book entries have been created.'));
   }
 
-  $output .= '<table>';
-  return $output;
-  
+  return $build;
 }

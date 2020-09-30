@@ -1,13 +1,11 @@
 name = E-Book
 description = Provide the general interface for ebooks.
 
-dependencies[] = node
-dependencies[] = user
-dependencies[] = field
+dependencies[] = pdf_reader
 
 core = 7.x
 version = 7.x-20130924
 author = Wang Xiaoli
 
-package = Example
-project = Example
+package = Ebook
+project = Ebook
